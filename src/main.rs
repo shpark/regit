@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use git2::{Commit, ObjectType, Oid, Repository};
+use git2::{Commit, ObjectType, Oid, Repository, TreeEntry};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -40,24 +40,43 @@ impl<'a> TargetRepository<'a> {
         })
     }
 
+    fn handle_tree_entry(
+        &mut self,
+        tent: TreeEntry,
+        pathbuf: &PathBuf,
+    ) -> anyhow::Result<()> {
+        let name = tent.name().unwrap();
+        let obj = tent.to_object(&self.source)?;
+        let mut pathbuf = pathbuf.clone();
+        pathbuf.push(name);
+
+        match obj.kind() {
+            Some(ObjectType::Blob) => {
+                std::fs::write(
+                    pathbuf,
+                    obj.as_blob().unwrap().content())?;
+            },
+            Some(ObjectType::Tree) => {
+                let tree = obj.as_tree().unwrap();
+                std::fs::create_dir(&pathbuf)?;
+                for child in tree.iter() {
+                    self.handle_tree_entry(child, &pathbuf)?;
+                }
+            },
+            _ => unimplemented!(),
+        }
+
+        Ok(())
+    }
+
     fn handle_commit(&mut self, commit: Commit) -> anyhow::Result<()> {
         let tree = commit.tree()?;
         let _index = self.inner.index()?;
 
         // Let's ingnore directories for now.
+        let pathbuf = PathBuf::from(&self.root);
         for tent in tree.iter() {
-            let name = tent.name().unwrap();
-            let obj = tent.to_object(&self.source)?;
-            match &obj.kind() {
-                Some(ObjectType::Blob) => {
-                    let mut path = PathBuf::from(&self.root);
-                    path.push(name);
-                    std::fs::write(
-                        path,
-                        obj.as_blob().unwrap().content())?;
-                },
-                _ => continue
-            }
+            self.handle_tree_entry(tent, &pathbuf)?;
         }
 
         Ok(())
