@@ -1,1 +1,21 @@
 #+TITLE: Git-replay
+
+* Overview
+
+Git-replay is a simple tool that /replays/ the history
+of a Git repository but with some tweaks (i.e., it can
+change the author name and email).
+
+* Usage
+
+#+begin_src sh
+cargo run -- <src repo> <dest dir> <name> <email>
+#+end_src
+
+Then, a clone repository with updated name and email is
+crated under ~<dest dir>~.
+
+* Limitations
+
+Limited to repositories with /linear/ commit history
+(i.e., can't handle merge).
