@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use git2::{Commit, Index, ObjectType, Oid, Repository, Tree, TreeEntry, TreeWalkMode, TreeWalkResult};
+use git2::{Commit, Index, ObjectType, Oid, Repository, TreeEntry};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -40,22 +40,7 @@ impl<'a> TargetRepository<'a> {
         })
     }
 
-    fn handle_tree(
-        &mut self,
-        tree: &Tree,
-    ) -> anyhow::Result<()> {
-        tree.walk(TreeWalkMode::PostOrder, |_, entry| {
-            // how to get a full path name?
-            // We need to know the directory structure, but `.name()`
-            // only gives us the file name w/o its parent directories.
-            println!("{}", entry.name().unwrap());
-            TreeWalkResult::Ok
-        })?;
-
-        Ok(())
-    }
-
-    /// Recursively copy blob contents.
+    /// Recursively copy blob contents, and update index
     fn handle_tree_entry(
         &mut self,
         tent: TreeEntry,
@@ -74,15 +59,12 @@ impl<'a> TargetRepository<'a> {
                 let entry = self.path_to_oid.get(&pathbuf);
 
                 if entry.is_none() || *entry.unwrap() != obj.id() {
-                    // XXX: How to force udpate with `write`?
                     let mut root = PathBuf::from(&self.root);
                     root.push(&pathbuf);
-                    println!("{:?}", &root);
                     std::fs::write(
                         &root,
                         obj.as_blob().unwrap().content())?;
 
-                    // TODO: Update index
                     let index = &mut self.inner.index()?;
                     index.add_path(&pathbuf)?;
 
@@ -99,10 +81,6 @@ impl<'a> TargetRepository<'a> {
                 for child in tree.iter() {
                     self.handle_tree_entry(child, &pathbuf, &index)?;
                 }
-                // TODO: Update index?
-                // TODO: What if we ignore the directories?
-                // let index = &mut self.inner.index()?;
-                // index.add_path(&pathbuf)?;
             },
             _ => unimplemented!(),
         }
@@ -191,8 +169,8 @@ fn main() -> anyhow::Result<()> {
     loop {
         let tmp = &commit;
         orig_commits.push_back(tmp.clone());
-        // Current implementation can only handle *linear* history at best.
-        match commit.parent(0 /* FIXME? */) {
+        // XXX: Current implementation can only handle *linear* history at best.
+        match commit.parent(0 /* FIXME */) {
             Ok(parent) => {
                 commit = parent;
             },
