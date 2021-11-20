@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use git2::{Commit, Index, ObjectType, Oid, Repository, TreeEntry};
+use git2::{Commit, Index, ObjectType, Oid, Repository, Signature, TreeEntry};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -22,8 +22,8 @@ struct TargetRepository<'a> {
     source: &'a Repository,
     inner: Repository,
     root: String,
-    _name: String,
-    _email: String,
+    name: String,
+    email: String,
     path_to_oid: BTreeMap<PathBuf, Oid>,
 }
 
@@ -34,8 +34,8 @@ impl<'a> TargetRepository<'a> {
             source,
             inner: repo,
             root: String::from(path),
-            _name: String::from(name),
-            _email: String::from(email),
+            name: String::from(name),
+            email: String::from(email),
             path_to_oid: Default::default(),
         })
     }
@@ -110,7 +110,11 @@ impl<'a> TargetRepository<'a> {
             self.handle_tree_entry(tent, &pathbuf, &index)?;
         }
 
-        let sig = self.source.signature()?;
+        let sig = Signature::new(
+            &self.name,
+            &self.email,
+            &commit.time(),
+        )?;
         let index = &mut self.inner.index()?;
         let tree_id = index.write_tree()?;
         let tree = self.inner.find_tree(tree_id)?;
