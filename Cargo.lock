@@ -81,7 +81,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-masquerade"
+name = "git-replay"
 version = "0.1.0"
 dependencies = [
  "anyhow",
