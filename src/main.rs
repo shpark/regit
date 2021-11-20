@@ -208,19 +208,13 @@ fn main() -> anyhow::Result<()> {
         &args.arg_email,
     )?;
 
-    // XXX: This will copy *blobs* that are added by the initial
-    // commit of the soruce repository to the target repository
-    // directories (Note this respects the directory architecture
-    // as well).
-    if let Some(initial_commit) = orig_commits.pop_back() {
-        let target_initial_commit_oid = target.handle_commit(&initial_commit, None)?;
-        if let Some(second_oldest_commit) = orig_commits.pop_back() {
-            let target_initial_commit = Oid::zero();
-            target.handle_commit(
-                &second_oldest_commit,
-                Some(&[target_initial_commit_oid]),
-            )?;
-        }
+    // 3. Migrate commits.
+    let mut parents_oid = None;
+    let mut oids: Vec<Oid>;
+    while let Some(commit) = orig_commits.pop_back() {
+        let oid = target.handle_commit(&commit, parents_oid)?;
+        oids = vec![oid];
+        parents_oid = Some(&oids[..]);
     }
 
 
